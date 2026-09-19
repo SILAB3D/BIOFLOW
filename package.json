@@ -1,0 +1,41 @@
+{
+  "name": "bioflow",
+  "version": "1.13.0",
+  "description": "BioFlow — seguimiento de muestras de laboratorio y caracterización de fenotipos celulares (app de escritorio instalable)",
+  "main": "main.js",
+  "author": "Iván",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^31.7.6",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.bioflow.lab",
+    "productName": "BioFlow",
+    "files": [
+      "main.js",
+      "preload.js",
+      "bioflow.html",
+      "report-assets.js"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BioFlow",
+      "artifactName": "BioFlow-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    }
+  }
+}
