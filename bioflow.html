@@ -756,6 +756,24 @@ body.compact .section{margin-bottom:20px}
 .dsc-sub{font-size:11.5px;font-weight:500;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .dsc-empty{font-size:12.5px;color:var(--tx3);padding:10px 2px;line-height:1.55}
 .dsc-all{width:100%;justify-content:center;margin-top:2px;flex-shrink:0}
+/* Chip de estado de los avisos del sistema (Configuración). */
+.notif-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:3px 9px;border-radius:999px;background:var(--sf3);color:var(--tx2);white-space:nowrap}
+.notif-chip.on{background:var(--acl);color:var(--act)}
+.notif-chip .ic{width:13px;height:13px;flex-shrink:0}
+/* Cabecera-cartel: funde el antiguo recuento con el encabezado del panel. */
+.dsc-ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--acl);color:var(--act)}
+.dsc-ic .ic{width:21px;height:21px}
+.dsc-ic.t-vi{background:var(--diff-bg);color:var(--diff-tx)}
+.dsc-hd-tx{flex:1;min-width:0}
+.dsc-l{font-size:12px;color:var(--tx2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
+.dsc-v{font-size:26px;font-weight:700;line-height:1.05;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.dsc-note{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--tx2);font-weight:550;flex-wrap:wrap;margin-top:-3px;padding:0 2px;min-height:17px}
+.dsc-note b{color:var(--ac);font-weight:700}
+.dsc-note .ic{color:var(--ac);flex-shrink:0;width:14px;height:14px}
+.dsc-note-b{display:flex;align-items:center;gap:5px;background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;transition:color .12s var(--ease)}
+.dsc-note-b:hover{color:var(--ac)}
+body.compact .dsc-ic{width:33px;height:33px}
+body.compact .dsc-v{font-size:22px}
 
 /* Tarjetas de proyecto / fenotipo / informe */
 .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px;min-width:0}
@@ -1095,6 +1113,24 @@ body.flowc .fbranch-col,body.flowc .fbnode,body.flowc .fadd-branch{width:126px}
    el color para que el texto siga leyéndose. */
 .ag-area{min-width:0}
 .ag-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;min-width:0}
+/* Transiciones de la Agenda. El cuerpo entra desplazado en el sentido del
+   salto (mes siguiente = desde la derecha) y el cambio de vista entra con un
+   fundido corto. overflow-x:clip evita la barra horizontal del desplazamiento
+   sin crear un contenedor con scroll propio. */
+.ag-area{overflow-x:clip}
+@keyframes ag-in-r{from{opacity:0;transform:translate3d(22px,0,0)}to{opacity:1;transform:none}}
+@keyframes ag-in-l{from{opacity:0;transform:translate3d(-22px,0,0)}to{opacity:1;transform:none}}
+@keyframes ag-in-f{from{opacity:0;transform:scale(.988) translate3d(0,7px,0)}to{opacity:1;transform:none}}
+.ag-anim-r{animation:ag-in-r .24s var(--ease) both}
+.ag-anim-l{animation:ag-in-l .24s var(--ease) both}
+.ag-anim-f{animation:ag-in-f .22s var(--ease) both}
+h1.title.ag-anim-r,h1.title.ag-anim-l,h1.title.ag-anim-f{animation-duration:.2s}
+@media (prefers-reduced-motion:reduce){.ag-anim-r,.ag-anim-l,.ag-anim-f{animation:none}}
+/* Exportación por periodo */
+.ag-exp-quick{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px}
+.ag-exp-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.ag-exp-f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:550;color:var(--tx2)}
+.ag-exp-f input{min-width:150px}
 .ag-bar .ag-sp{flex:1;min-width:0}
 .ag-nav{display:flex;align-items:center;gap:6px}
 .ag-navb{
@@ -2068,6 +2104,8 @@ body.col-resizing .pop-resize::after{background:var(--ac)}
 
 /* ════════ 18 · MOVIMIENTO ════════ */
 .scroll>.wrap{animation:viewIn .3s var(--ease-out)}
+.scroll>.wrap.quiet{animation:none}
+.no-up{text-transform:none}
 @keyframes viewIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 .rp-feno,.fb-list,.mtx-wrap{scroll-behavior:smooth}
 .icon-btn:active,.pill-btn:active,.foot-btn:active,.ic-x:active{transform:scale(.93)}
@@ -3101,12 +3139,48 @@ function fileBtnClick(){
 /* Envoltorio de «hoja»: el diálogo baja desde el borde superior de la ventana,
    como las hojas del sistema, en lugar de aparecer centrado. */
 function wrapSheet(inner){return`<div class="modal-ov sheet-ov" onclick="if(event.target===this)closeModal()">${inner}</div>`;}
+/* Opciones de los selectores de archivo: abren en la carpeta del último archivo
+   usado (normalmente la de la app) y, si no lo hay, en la última carpeta que
+   se eligió para BioFlow. */
+function filePickerOpts(extra){
+  const o=Object.assign({id:'bioflow-datos',types:[{description:'Datos BioFlow',accept:{'application/json':['.json']}}]},extra||{});
+  if(fileHandle)o.startIn=fileHandle;
+  return o;
+}
+async function filePicker(fn,extra){
+  try{return await window[fn](filePickerOpts(extra));}
+  catch(e){
+    /* Un archivo recordado que ya no existe hace fallar «startIn»: se reintenta sin él. */
+    if(e&&e.name!=='AbortError'&&fileHandle){const o=filePickerOpts(extra);delete o.startIn;return await window[fn](o);}
+    throw e;
+  }
+}
 function fileDialog(){
   const root=document.getElementById('mroot');const linked=fileLinked;
+  /* Navegador con un archivo recordado pero sin permiso en esta sesión: se
+     sugiere ese mismo archivo y basta un clic para volver a vincularlo. */
+  const sugerido=!linked&&!DESKTOP&&filePending&&fileHandle?fileHandle.name:'';
+  if(sugerido){
+    root.innerHTML=wrapSheet(`<div class="modal sheet">
+      <div class="mtit"><span class="mtit-ic">${ic('file',20)}</span>Archivo de datos</div>
+      <p style="font-size:13.5px;color:var(--tx2);line-height:1.6;margin-bottom:10px">Último archivo usado:</p>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--bd2);border-radius:10px;background:var(--sf2)">${ic('file',18)}<b style="word-break:break-all">${esc(sugerido)}</b></div>
+      <p style="font-size:12.5px;color:var(--tx3);line-height:1.55;margin-top:10px">Por seguridad, el navegador pide confirmar el acceso al archivo cada vez que se abre la app.</p>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-top:16px">
+        <button class="btn btn-p" onclick="reconnectFile()">${ic('link',16)} Reconectar y cargar</button>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn btn-g" style="flex:1" onclick="openExistingFile()">${ic('upload',16)} Elegir otro…</button>
+          <button class="btn btn-g" style="flex:1" onclick="linkNewFile()">${ic('download',16)} Crear nuevo…</button>
+        </div>
+      </div>
+      <div class="mact"><button class="btn btn-g" onclick="closeModal()">${ic('x',16)} Ahora no</button></div>
+    </div>`);
+    return;
+  }
   const info=linked
     ?(DESKTOP&&fileName?`Vinculado a:<br><b style="word-break:break-all">${esc(fileName)}</b><br><br>Los cambios se guardan ahí automáticamente, y también en este equipo como respaldo. Al abrir el programa se vincula solo a este archivo.`
                       :'Los cambios se guardan automáticamente en el archivo vinculado, además de en este equipo como respaldo.')
-    :'Selecciona el archivo <b>.json</b> de guardado. Al abrir el programa se vinculará automáticamente a él. Útil también para llevar tus datos entre equipos copiando ese archivo.';
+    :'Selecciona el archivo <b>.json</b> de guardado. Lo más cómodo es tenerlo como <b>bioflow-datos.json</b> en la misma carpeta que la app: al abrirla se te sugerirá ese archivo. Útil también para llevar tus datos entre equipos copiando la carpeta.';
   root.innerHTML=wrapSheet(`<div class="modal sheet">
     <div class="mtit"><span class="mtit-ic">${ic('file',20)}</span>Archivo de datos</div>
     <p style="font-size:13.5px;color:var(--tx2);line-height:1.6;margin-bottom:6px">${info}</p>
@@ -3131,7 +3205,7 @@ async function linkNewFile(){
     return;
   }
   try{
-    const handle=await window.showSaveFilePicker({suggestedName:'bioflow-datos.json',types:[{description:'Datos BioFlow',accept:{'application/json':['.json']}}]});
+    const handle=await filePicker('showSaveFilePicker',{suggestedName:'bioflow-datos.json'});
     fileHandle=handle;fileLinked=true;filePending=false;await idbSet(IDB_KEY,handle);await writeFile();updateFileBtn();
     toast('Archivo vinculado. Tus datos se guardan ahí automáticamente.',{icon:'circle-check'});
   }catch(e){if(e&&e.name!=='AbortError')toast('No se pudo crear el archivo. Si abriste la app con doble clic, prueba a abrirla desde Chrome/Edge.',{icon:'alert'});}
@@ -3150,7 +3224,7 @@ async function openExistingFile(silent){
     return;
   }
   try{
-    const picked=await window.showOpenFilePicker({types:[{description:'Datos BioFlow',accept:{'application/json':['.json']}}]});
+    const picked=await filePicker('showOpenFilePicker');
     const handle=picked[0];fileHandle=handle;
     if(!await verifyPerm(handle,true)){toast('Permiso denegado al archivo.',{icon:'alert'});return;}
     fileLinked=true;filePending=false;await idbSet(IDB_KEY,handle);
@@ -3168,7 +3242,12 @@ async function unlinkFile(){
 }
 async function reconnectFile(){
   if(!fileHandle){fileDialog();return;}
-  if(await verifyPerm(fileHandle,true)){fileLinked=true;filePending=false;try{await readFile();}catch(_){}saveLocalNow();renderAll();updateFileBtn();toast('Archivo reconectado.',{icon:'circle-check'});}
+  if(await verifyPerm(fileHandle,true)){
+    closeModal();fileLinked=true;filePending=false;
+    let ok=false;try{ok=await readFile();}catch(_){}
+    saveLocalNow();renderAll();updateFileBtn();updateFbBtn();
+    toast(ok?'Archivo reconectado. Datos cargados de «'+fileHandle.name+'».':'Archivo reconectado.',{icon:'circle-check'});
+  }
   else toast('No se concedió permiso al archivo.',{icon:'alert'});
 }
 
@@ -4011,29 +4090,57 @@ function renderDashboard(c){
   /* Cada área en su columna: el título con su botón de creación, los 4 elementos
      más recientes en un listado compacto y el acceso a la sección completa. */
   const last4=arr=>arr.slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,4);
-  const col=(icon,title,count,addTitle,addFn,allFn,items,vacio)=>`<section class="dash-col">
-      <div class="dsc-head"><div class="sec-ico">${ic(icon,18)}</div><h2>${title}</h2><span class="cnt">${count}</span><div class="sp"></div><button class="dsc-add" title="${addTitle}" aria-label="${addTitle}" onclick="${addFn}">${ic('plus',17)}</button></div>
-      <div class="dsc-list">${items||`<div class="dsc-empty">${vacio}</div>`}</div>
-      <button class="btn btn-g sm dsc-all" onclick="${allFn}">Ver todos ${ic('chevron-right',15)}</button>
+  /* La cabecera de cada panel ES el cartel de recuento: icono, rótulo y cifra
+     grande. Debajo, una línea de apoyo con la métrica secundaria del área. */
+  const col=(o)=>`<section class="dash-col">
+      <div class="dsc-head">
+        <div class="dsc-ic${o.tone?' '+o.tone:''}">${ic(o.icon,23)}</div>
+        <div class="dsc-hd-tx"><div class="dsc-l">${o.title}</div><div class="dsc-v">${o.count}</div></div>
+        <button class="dsc-add" title="${o.addTitle}" aria-label="${o.addTitle}" onclick="${o.addFn}">${ic('plus',17)}</button>
+      </div>
+      ${o.note?`<div class="dsc-note">${o.note}</div>`:''}
+      <div class="dsc-list">${o.items||`<div class="dsc-empty">${o.vacio}</div>`}</div>
+      <button class="btn btn-g sm dsc-all" onclick="${o.allFn}">${o.allLabel||'Ver todos'} ${ic('chevron-right',15)}</button>
     </section>`;
   const projItems=last4(S.projects).map(p=>{const tot=totalSt(p),sm=p.samples||[];const avg=sm.length?Math.round(sm.reduce((a,x)=>a+(tot>0?progress(x,p)/tot:0),0)/sm.length*100):0;
     return `<button class="dsc-item" onclick="openProj('${p.id}')"><span class="dsc-dot" style="background:${p.color}"></span><span class="dsc-main"><span class="dsc-name">${esc(p.name)}</span><span class="dsc-sub">${sm.length} muestras · ${(p.steps||[]).length} etapas · ${avg}%</span></span></button>`;}).join('');
   const phItems=last4(S.ph.samples).map(s=>`<button class="dsc-item" onclick="gotoPheno('${s.id}')"><span class="dsc-dot" style="background:var(--violet)"></span><span class="dsc-main"><span class="dsc-name">${esc(s.title||'Sin título')}</span><span class="dsc-sub">${s.markers.length} marcadores · ${s.populations.length} poblaciones</span></span></button>`).join('');
   const rItems=last4(S.reports||[]).map(r=>`<button class="dsc-item" onclick="rOpen('${r.id}')"><span class="dsc-dot" style="background:var(--violet)"></span><span class="dsc-main"><span class="dsc-name">${esc(r.name||'Sin título')}</span><span class="dsc-sub">${(r.celRows||[]).length} filas · ${fmtDay(r.createdAt)}</span></span></button>`).join('');
+  const stL=(typeof stList==='function')?stList():[];
+  const stItems=last4(stL).map(e=>`<button class="dsc-item" onclick="stOpen('${e.id}')"><span class="dsc-dot" style="background:${esc((e.steps&&e.steps[0]&&e.steps[0].xc)||'#12A793')}"></span><span class="dsc-main"><span class="dsc-name">${esc(stTitle(e))}</span><span class="dsc-sub">${(e.steps||[]).length} capturas · ${(e.panel||[]).length} anticuerpos</span></span></button>`).join('');
+
+  /* Próximos eventos de la Agenda: instancias pendientes de los próximos 30
+     días, con las series que se repiten ya expandidas. */
+  const hoyD=todayYmd();
+  let prox=[];
+  try{prox=agInstances(hoyD,agAddDays(hoyD,30)).filter(e=>!e.done).sort((a,b)=>a.date.localeCompare(b.date)||agOrdKey(a).localeCompare(agOrdKey(b)));}catch(_){prox=[];}
+  const evItems=prox.slice(0,4).map(e=>`<button class="dsc-item" onclick="agOpenDay('${e.date}')"><span class="dsc-dot" style="background:${e.color}"></span><span class="dsc-main"><span class="dsc-name">${esc(e.title)}</span><span class="dsc-sub">${e.date===hoyD?'Hoy':esc(DIAS[agDow(e.date)]+' · '+agShortDate(e.date))}${e.time?' · '+esc(e.time):''}</span></span></button>`).join('');
+  const proxHoy=prox.filter(e=>e.date===hoyD).length;
+
+  /* Métricas secundarias que acompañan a cada cifra grande. */
+  const totPob=S.ph.samples.reduce((a,x)=>a+(x.populations||[]).length,0);
+  const totFilas=(S.reports||[]).reduce((a,r)=>a+(r.celRows||[]).length,0);
+  const totCapt=stL.reduce((a,e)=>a+(e.steps||[]).length,0);
 
   c.innerHTML=`<div class="wrap">
     <div class="hero"><div><h1>${greet}</h1></div>
       <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="btn btn-p" onclick="openModal('proj')">${ic('plus',16)} Proyecto</button><button class="btn btn-g" onclick="phCreateSample()">${ic('plus',16)} Fenotipo</button></div></div>
-    <div class="stats">
-      <div class="stat"><div class="stat-ic" style="background:var(--acl);color:var(--act)">${ic('folders',25)}</div><div><div class="stat-l">Proyectos</div><div class="stat-v">${projCount}</div></div></div>
-      <div class="stat"><div class="stat-ic" style="background:var(--acl);color:var(--act)">${ic('tube',25)}</div><div><div class="stat-l">Muestras</div><div class="stat-v">${totS}</div><div class="stat-note">${ic('circle-check',13)} <b>${pctC}%</b> completadas</div></div></div>
-      <div class="stat"><div class="stat-ic" style="background:var(--diff-bg);color:var(--diff-tx)">${ic('flask',25)}</div><div><div class="stat-l">Fenotipos</div><div class="stat-v">${phCount}</div></div></div>
-      <div class="stat"><div class="stat-ic" style="background:var(--acl);color:var(--act)">${ic('report',25)}</div><div><div class="stat-l">Informes</div><div class="stat-v">${rCount}</div></div></div>
-    </div>
     <div class="dash-cols">
-      ${col('folders','Proyectos',projCount,'Nuevo proyecto','openModal(&quot;proj&quot;)','setArea(&quot;projects&quot;)',projItems,'Sin proyectos todavía.')}
-      ${col('flask','Fenotipos',phCount,'Nuevo fenotipo','phCreateSample()','setArea(&quot;phenotype&quot;)',phItems,'Sin fenotipos todavía.')}
-      ${col('report','Informes',rCount,'Nuevo informe','rNew()','setArea(&quot;reports&quot;)',rItems,'Sin informes todavía.')}
+      ${col({icon:'folders',title:'Proyectos',count:projCount,tone:'t-ac',
+        note:`<button class="dsc-note-b" onclick="openAllSamples()" title="Ver todas las muestras">${ic('tube',14)} <b>${totS}</b> muestras · <b>${pctC}%</b> completadas</button>`,
+        addTitle:'Nuevo proyecto',addFn:'openModal(&quot;proj&quot;)',allFn:'setArea(&quot;projects&quot;)',items:projItems,vacio:'Sin proyectos todavía.'})}
+      ${col({icon:'flask',title:'Fenotipos',count:phCount,tone:'t-vi',
+        note:`${ic('circle-dot',14)} <b>${totPob}</b> poblaciones caracterizadas`,
+        addTitle:'Nuevo fenotipo',addFn:'phCreateSample()',allFn:'setArea(&quot;phenotype&quot;)',items:phItems,vacio:'Sin fenotipos todavía.'})}
+      ${col({icon:'report',title:'Informes',count:rCount,tone:'t-ac',
+        note:`${ic('sheet',14)} <b>${totFilas}</b> filas de resultados`,
+        addTitle:'Nuevo informe',addFn:'rNew()',allFn:'setArea(&quot;reports&quot;)',items:rItems,vacio:'Sin informes todavía.'})}
+      ${col({icon:'target',title:'Estrategias',count:stL.length,tone:'t-vi',
+        note:`${ic('image',14)} <b>${totCapt}</b> capturas de gating`,
+        addTitle:'Nueva estrategia',addFn:'stNew()',allFn:'setArea(&quot;strategies&quot;)',items:stItems,vacio:'Sin estrategias todavía.'})}
+      ${col({icon:'calendar',title:'Próximos eventos',count:prox.length,tone:'t-ac',
+        note:`${ic('clock',14)} ${proxHoy?`<b>${proxHoy}</b> hoy · `:''}próximos 30 días`,
+        addTitle:'Nuevo evento',addFn:`agNew('${hoyD}')`,allFn:'setArea(&quot;agenda&quot;)',allLabel:'Ver la agenda',items:evItems,vacio:'Nada previsto por ahora.'})}
     </div>
     ${dueSection}
     <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('activity',19)}</div><h2>Actividad reciente</h2></div><div class="act-list">${recent.length?recent.map(a=>`<div class="act-item" onclick="openSampleFrom('${a.pid}','${a.sid}')"><div class="act-ic" style="background:${a.color}1F;color:${a.color}">${ic('check',18)}</div><div class="act-main"><b>${esc(a.code)}</b> · ${esc(a.step)}<div class="act-proj">${esc(a.pname)}</div></div><div class="act-time">${relTime(a.when)}</div></div>`).join(''):'<div class="empty"><div class="empty-ic">'+ic('history',40)+'</div><p>Aún no hay validaciones registradas.</p></div>'}</div></div>
@@ -4090,6 +4197,19 @@ function renderConfig(c){
         <label class="cfg-row"><div class="cfg-txt"><b>Recordatorio de sincronización</b><span>Abre la ventana del archivo de datos al iniciar.</span></div><input type="checkbox" ${on(S.syncReminder)?'checked':''} onchange="S.syncReminder=this.checked;save()"></label>
       </div>
     </div>
+
+    ${(()=>{const av=notifEstado();return `<div class="section"><div class="sec-hd"><div class="sec-ico">${ic('bell',19)}</div><h2>Avisos y recordatorios</h2></div>
+      <div class="rp-card">
+        <div class="cfg-row"><div class="cfg-txt"><b>Avisos del sistema</b><span>${av.activo?'Activos: los recordatorios salen también como aviso del escritorio.':esc(av.motivo)}</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="notif-chip${av.activo?' on':''}">${ic(av.activo?'circle-check':'alert',13)} ${esc(notifEtiqueta())}</span>
+            ${av.activo?'':`<button class="btn btn-g sm" onclick="notesAskOSPermission()">${ic('bell',15)} ${av.local?'Por qué':'Autorizar'}</button>`}
+          </div>
+        </div>
+        <div class="cfg-row"><div class="cfg-txt"><b>Probar un aviso</b><span>Lanza un recordatorio de prueba y te dice por qué canal ha salido.</span></div><button class="btn btn-g sm" onclick="notifProbar()">${ic('bell',15)} Probar</button></div>
+        <div class="cfg-row"><div class="cfg-txt"><b>Recordatorios pendientes</b><span>Los avisos de Notas y Agenda se comprueban cada 30 segundos; los que vencieron con la app cerrada se agrupan al abrirla.</span></div><button class="btn btn-g sm" onclick="notesCheckReminders(true)||toast('No hay avisos vencidos ahora mismo',{icon:'circle-check'})">${ic('history',15)} Comprobar ahora</button></div>
+      </div>
+    </div>`;})()}
 
     <div class="section" id="cfgFeno"><div class="sec-hd"><div class="sec-ico">${ic('flask',19)}</div><h2>Fenotipos · Opciones de expresión</h2></div>
       <div class="rp-card">
@@ -4271,7 +4391,22 @@ function stDelete(id){
   save();renderAll();
   toast('Estrategia eliminada',{icon:'trash',actionLabel:'Deshacer',onAction:()=>{arr.splice(Math.min(i,arr.length),0,e);save();renderAll();}});
 }
-function stSet(campo,valor){const e=stGet();if(!e)return;e[campo]=nmu(valor);e.updatedAt=new Date().toISOString();save();if(campo==='name'||campo==='population')renderAll();}
+function stSet(campo,valor){
+  const e=stGet();if(!e)return;e[campo]=nmu(valor);e.updatedAt=new Date().toISOString();save();
+  /* Sólo se retoca lo que cambia: repintar la página entera la hacía parpadear
+     y volver arriba en cada campo. */
+  if(campo==='name'||campo==='population'){
+    const h=document.getElementById('stHeadTitle');if(h)h.textContent=stTitle(e);
+    renderSidebar();
+  }
+}
+/* Repintado del editor sin animación de entrada y conservando el desplazamiento. */
+let _stQuiet=false;
+function stRender(){
+  const c=scrollEl(),top=c?c.scrollTop:0;
+  _stQuiet=true;try{renderMain();}finally{_stQuiet=false;}
+  if(c)c.scrollTop=top;
+}
 
 /* ── Capturas ──
    Cada imagen se reduce a ST_MAX_PX de lado mayor y se guarda en WebP, que en
@@ -4312,7 +4447,7 @@ async function stAddImagen(dataUri,stepId){
     e.steps.push({id:uid(),img:ref,x:'',y:'',xc:ST_AXIS_COLORS[e.steps.length%ST_AXIS_COLORS.length],yc:ST_AXIS_COLORS[(e.steps.length+2)%ST_AXIS_COLORS.length]});
   }
   e.updatedAt=new Date().toISOString();
-  save();renderMain();
+  save();stRender();
 }
 function stFileInput(input,stepId){
   const fs=[...(input.files||[])];
@@ -4358,10 +4493,14 @@ function stPasteHandler(ev){
 /* Pega lo que haya en el portapapeles. Con «destino» sustituye esa captura;
    sin él, las añade al final. Si el navegador no deja leer el portapapeles,
    se deja armado el destino y basta con pulsar Ctrl+V. */
+let stClipPreguntado=(()=>{try{return sessionStorage.getItem('bf_clipAsked')==='1';}catch(_){return false;}})();
+async function stPermisoPortapapeles(){
+  try{return (await navigator.permissions.query({name:'clipboard-read'})).state;}catch(_){return 'unknown';}
+}
 async function stPegarEn(destino){
   const noSePuede=motivo=>{
     if(destino){
-      stPasteTarget=destino;renderMain();
+      stPasteTarget=destino;stRender();
       toast(motivo+' Pulsa Ctrl+V para sustituir esa captura.',{icon:'paste',duration:8000});
     }else{
       toast(motivo+' Pulsa Ctrl+V para pegar.',{icon:'paste',duration:8000});
@@ -4370,6 +4509,15 @@ async function stPegarEn(destino){
   if(!(navigator.clipboard&&navigator.clipboard.read)){
     noSePuede('Este navegador no deja leer el portapapeles desde el botón.');return;
   }
+  /* El navegador pide permiso cada vez que el botón lee el portapapeles si el
+     permiso no queda concedido (p. ej. abriendo el .html con doble clic). Sólo
+     se le deja preguntar una vez por sesión; después se tira de Ctrl+V, que no
+     necesita permiso. */
+  if(!DESKTOP&&stClipPreguntado&&await stPermisoPortapapeles()!=='granted'){
+    noSePuede('Para no repetir el aviso de permisos del navegador, el botón ya no vuelve a pedirlo en esta sesión.');return;
+  }
+  stClipPreguntado=true;
+  try{sessionStorage.setItem('bf_clipAsked','1');}catch(_){}
   let items;
   try{items=await navigator.clipboard.read();}
   catch(_){noSePuede('El navegador no autorizó leer el portapapeles.');return;}
@@ -4416,30 +4564,47 @@ function stStepMove(id,dir){
   const i=e.steps.findIndex(p=>p.id===id),j=i+dir;
   if(i<0||j<0||j>=e.steps.length)return;
   const [p]=e.steps.splice(i,1);e.steps.splice(j,0,p);
-  save();renderMain();
+  save();stRender();
 }
 function stStepDel(id){
   const e=stGet();if(!e)return;
   e.steps=e.steps.filter(p=>p.id!==id);
-  save();renderMain();
+  save();stRender();
 }
 function stStepSet(id,campo,valor){
   const e=stGet();if(!e)return;
   const p=e.steps.find(x=>x.id===id);if(!p)return;
   p[campo]=(campo==='x'||campo==='y')?nmu(valor):valor;
   e.updatedAt=new Date().toISOString();save();
-  if(campo==='xc'||campo==='yc')renderMain();
+  if(campo==='xc'||campo==='yc')stRender();
 }
 
 /* ── Mix de anticuerpos ── */
-function stPanelAdd(){const e=stGet();if(!e)return;e.panel.push({marker:'',fluor:'',titer:''});save();renderMain();}
+function stPanelAdd(){const e=stGet();if(!e)return;e.panel.push({marker:'',fluor:'',titer:''});save();stRender();}
 function stPanelSet(i,campo,v){const e=stGet();if(!e||!e.panel[i])return;e.panel[i][campo]=nmu(v);e.updatedAt=new Date().toISOString();save();}
-function stPanelDel(i){const e=stGet();if(!e)return;e.panel.splice(i,1);save();renderMain();}
+function stPanelDel(i){const e=stGet();if(!e)return;e.panel.splice(i,1);save();stRender();}
 function stPanelMove(i,dir){
   const e=stGet();if(!e)return;const j=i+dir;
   if(j<0||j>=e.panel.length)return;
   const [f]=e.panel.splice(i,1);e.panel.splice(j,0,f);
-  save();renderMain();
+  save();stRender();
+}
+/* Vaciado de secciones completas, con deshacer. */
+function stClearSteps(){
+  const e=stGet();if(!e||!e.steps.length)return;
+  const antes=e.steps;e.steps=[];stPasteTarget=null;
+  e.updatedAt=new Date().toISOString();save();stRender();
+  toast('Capturas eliminadas',{icon:'trash',duration:6000,actionLabel:'Deshacer',onAction:()=>{e.steps=antes;save();stRender();}});
+}
+function stClearPanel(){
+  const e=stGet();if(!e)return;
+  const ta=document.getElementById('stPanelPaste');
+  const texto=ta?ta.value:'';
+  if(ta)ta.value='';
+  if(!e.panel.length)return;
+  const antes=e.panel;e.panel=[];
+  e.updatedAt=new Date().toISOString();save();stRender();
+  toast('Mix de anticuerpos vaciado',{icon:'trash',duration:6000,actionLabel:'Deshacer',onAction:()=>{e.panel=antes;save();stRender();const t=document.getElementById('stPanelPaste');if(t)t.value=texto;}});
 }
 /* Pegado desde Excel: Marcador · Fluorocromo · Título. */
 function stPanelPaste(){
@@ -4456,13 +4621,13 @@ function stPanelPaste(){
     filas.push({marker:nmu(m),fluor:nmu((c[1]||'').trim()),titer:nmu((c[2]||'').trim())});
   });
   if(!filas.length){toast('No se reconocieron filas. Pega desde Excel (columnas separadas por tabulador).',{icon:'alert'});return;}
-  e.panel=filas;save();renderMain();
+  e.panel=filas;save();stRender();
   toast(filas.length+' fila(s) cargadas',{icon:'sheet'});
 }
 
 /* ── Vistas ── */
 function renderStrategies(c){
-  if(V.stpage==='edit'&&stGet(V.stid))c.innerHTML=`<div class="wrap">${stViewEdit(stGet(V.stid))}</div>`;
+  if(V.stpage==='edit'&&stGet(V.stid))c.innerHTML=`<div class="wrap${_stQuiet?' quiet':''}">${stViewEdit(stGet(V.stid))}</div>`;
   else{V.stpage='home';V.stid=null;c.innerHTML=`<div class="wrap">${stViewHome()}</div>`;}
   c.querySelectorAll('textarea.auto').forEach(t=>{t.style.height='auto';t.style.height=t.scrollHeight+'px';});
 }
@@ -4545,7 +4710,7 @@ function stViewEdit(e){
 
   return `<button class="back-btn" onclick="stHome()">${ic('arrow-left',15)} Estrategias</button>
     <div class="page-head">
-      <div><div class="eyebrow">Estrategias</div><h1 class="title">${esc(stTitle(e))}</h1><p class="sub">${e.steps.length} captura(s) · ${e.panel.length} anticuerpo(s)</p></div>
+      <div><div class="eyebrow">Estrategias</div><h1 class="title" id="stHeadTitle">${esc(stTitle(e))}</h1><p class="sub">${e.steps.length} captura(s) · ${e.panel.length} anticuerpo(s)</p></div>
       <div class="st-acts">
         <button class="btn btn-g" onclick="stExportPng('${e.id}')">${ic('image',16)} PNG</button>
         <button class="btn btn-g" onclick="stExportPdf('${e.id}')">${ic('pdf',16)} PDF</button>
@@ -4562,19 +4727,19 @@ function stViewEdit(e){
       </div></div>
     </div>
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('target',19)}</div><h2>Estrategia de gating <span class="cnt">${e.steps.length}/${ST_MAX_STEPS}</span></h2></div>
+    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('target',19)}</div><h2>Estrategia de gating <span class="cnt">${e.steps.length}/${ST_MAX_STEPS}</span></h2>${e.steps.length?`<div class="sp" style="flex:1"></div><button class="btn btn-g sm" onclick="stClearSteps()" title="Quitar todas las capturas">${ic('trash',14)} Vaciar</button>`:''}</div>
       <div class="rp-card">
         ${zona}
         ${e.steps.length?`<p class="sub" style="margin:16px 0 12px">Se encadenan en este orden con flechas. Las etiquetas de eje acompañan a cada gráfico con el color que elijas.</p><div class="st-steps">${pasos}</div>`:''}
       </div>
     </div>
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('sheet',19)}</div><h2>Mix de anticuerpos</h2></div>
+    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('sheet',19)}</div><h2>Mix de anticuerpos</h2><div class="sp" style="flex:1"></div><button class="btn btn-g sm" onclick="stClearPanel()" title="Vaciar la tabla y el texto pegado">${ic('trash',14)} Vaciar</button></div>
       <div class="rp-card">
         <label class="mlbl">${ic('paste',13)} Pegar desde Excel (columnas: Marcador, Fluorocromo, Título µL)</label>
         <textarea id="stPanelPaste" class="minp" rows="2" placeholder="Pega aquí la tabla copiada de Excel y pulsa «Cargar pegado»…"></textarea>
         <div style="display:flex;gap:8px;margin:10px 0 14px;flex-wrap:wrap"><button class="btn btn-p sm" onclick="stPanelPaste()">${ic('paste',14)} Cargar pegado</button><button class="btn btn-g sm" onclick="stPanelAdd()">${ic('plus',14)} Añadir fila</button></div>
-        <div style="overflow-x:auto"><table class="rp-table"><thead><tr><th>Marcador</th><th>Fluorocromo</th><th>Título (µL)</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>
+        <div style="overflow-x:auto"><table class="rp-table"><thead><tr><th>Marcador</th><th>Fluorocromo</th><th>Título (<span class="no-up">µ</span>L)</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>
       </div>
     </div>
 
@@ -4689,7 +4854,7 @@ async function stDibujar(e,escala){
   medidor.font='700 27px "Plus Jakarta Sans","Segoe UI",system-ui,sans-serif';
   const lineasFeno=stPartir(medidor,e.phenotype||'—',colDer-52);
   const fenoH=40+Math.max(60,lineasFeno.length*36+26);
-  const pctH=e.pct?120:0;
+  const pctH=e.pct?136:0;   // título de sección (34) + recuadro (84) + aire
   medidor.font='400 17px "Plus Jakarta Sans","Segoe UI",system-ui,sans-serif';
   const lineasNotas=e.notes?stPartir(medidor,e.notes,anchoUtil-40):[];
   const notasH=lineasNotas.length?(28+lineasNotas.length*24+18):0;
@@ -4776,20 +4941,17 @@ async function stDibujar(e,escala){
   lineasFeno.forEach((l,i)=>g.fillText(l,xd+26,yFeno+20+i*36));
 
   if(e.pct){
-    const yp=yFeno+(fenoH-40)+18;
-    stRect(g,xd,yp,colDer,pctH-18,14);
+    /* Mismo título de sección que «Fenotipo de la población». */
+    const yt=yFeno+(fenoH-40)+22;
+    stTituloSeccion(g,'% APROXIMADO',xd,yt,colDer);
+    const yp=yt+34;
+    stRect(g,xd,yp,colDer,84,14);
     const gp=g.createLinearGradient(xd,yp,xd+colDer,yp);
     gp.addColorStop(0,P.marca2);gp.addColorStop(1,P.marca1);
     g.fillStyle=gp;g.fill();
     g.fillStyle='#FFFFFF';
-    g.font='600 16px "Plus Jakarta Sans","Segoe UI",system-ui,sans-serif';
-    g.globalAlpha=.92;
-    g.fillText('% APROXIMADO',xd+26,yp+20);
-    g.globalAlpha=1;
     g.font='800 44px "Plus Jakarta Sans","Segoe UI",system-ui,sans-serif';
-    g.textAlign='right';
-    g.fillText(e.pct+(/%$/.test(e.pct)?'':' %'),xd+colDer-26,yp+34);
-    g.textAlign='left';
+    g.fillText(e.pct+(/%$/.test(e.pct)?'':' %'),xd+26,yp+18);
   }
 
   /* Notas al pie */
@@ -5229,22 +5391,63 @@ function agApply(key,cambios,scope){
 }
 
 /* ── Navegación ── */
-function agGo(date){V.agDate=date;renderAll();}
-function agSetView(v){V.agView=v;S.agView=v;V.agQ='';save();renderAll();}
-function agToday(){V.agDate=todayYmd();renderAll();}
+/* Cambiar de vista o de periodo no vuelve a pintar la página entera: sólo se
+   sustituye el cuerpo del calendario y se le aplica una animación corta. Así
+   el encabezado, la barra y el panel lateral no parpadean, y el salto entre
+   meses o entre vistas se ve como un desplazamiento y no como un corte. */
+const AG_ANIM={'-1':'ag-anim-l','1':'ag-anim-r','0':'ag-anim-f'};
+function agAnimar(el,dir){
+  if(!el)return;
+  const cls=AG_ANIM[String(dir)]||AG_ANIM['0'];
+  el.classList.remove('ag-anim-l','ag-anim-r','ag-anim-f');
+  void el.offsetWidth;                    /* reinicia la animación */
+  el.classList.add(cls);
+  el.addEventListener('animationend',()=>el.classList.remove(cls),{once:true});
+}
+/* Encabezado de la Agenda según la vista y la fecha actuales. */
+function agHeadTitle(){
+  if((V.agQ||'').trim())return 'Resultados de la búsqueda';
+  const v=V.agView||'month';
+  if(v==='month')return MESES[parseYmd(V.agDate).getMonth()].replace(/^./,m=>m.toUpperCase())+' '+parseYmd(V.agDate).getFullYear();
+  if(v==='week')return 'Semana del '+agShortDate(agWeekStart(V.agDate))+' al '+agShortDate(agAddDays(agWeekStart(V.agDate),6));
+  if(v==='day')return agLongDate(V.agDate);
+  return 'Próximos eventos';
+}
+/* Repintado parcial. dir: -1 atrás, 1 adelante, 0 cambio de vista.
+   Si la Agenda no está en pantalla, cae en el repintado completo de siempre. */
+function agRepaint(dir){
+  const zona=document.getElementById('agBody'),tit=document.getElementById('agTitle');
+  if(!zona||!tit||V.area!=='agenda'){renderAll();return;}
+  tit.textContent=agHeadTitle();
+  agAnimar(tit,0);
+  document.querySelectorAll('#agSeg .seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.v===(V.agView||'month')));
+  zona.innerHTML=(V.agQ||'').trim()?agViewSearch():agCuerpo();
+  agAnimar(zona,dir);
+  agAfterPaint();
+  renderAgendaRail();
+}
+function agGo(date){const atras=String(date)<String(V.agDate||'');V.agDate=date;agRepaint(atras?-1:1);}
+function agSetView(v){if(v===V.agView&&!(V.agQ||'').trim())return;V.agView=v;S.agView=v;V.agQ='';const c=document.getElementById('agSearch');if(c)c.value='';save();agRepaint(0);}
+function agToday(){const hoy=todayYmd();const dir=hoy===V.agDate?0:(hoy<V.agDate?-1:1);V.agDate=hoy;agRepaint(dir);}
 function agStep(dir){
   const v=V.agView||'month';
   if(v==='month')V.agDate=agAddMonths(V.agDate,dir);
   else if(v==='day')V.agDate=agAddDays(V.agDate,dir);
   else V.agDate=agAddDays(V.agDate,7*dir);
-  renderAll();
+  agRepaint(dir);
 }
-function agOpenDay(date){V.agDate=date;V.agView='day';S.agView='day';V.agQ='';save();renderAll();}
+function agOpenDay(date){
+  const veniaDeAgenda=(V.area==='agenda');
+  V.agDate=date;V.agView='day';S.agView='day';V.agQ='';save();
+  if(veniaDeAgenda)agRepaint(0); else {setArea('agenda');}
+}
 function agSetQuery(v){
   V.agQ=v||'';
   const c=scrollEl();if(!c)return;
   const zona=document.getElementById('agBody');
-  if(zona)zona.innerHTML=V.agQ.trim()?agViewSearch():agCuerpo();
+  if(zona){zona.innerHTML=V.agQ.trim()?agViewSearch():agCuerpo();agAnimar(zona,0);}
+  const tit=document.getElementById('agTitle');
+  if(tit)tit.textContent=agHeadTitle();
   agAfterPaint();
 }
 
@@ -5253,17 +5456,14 @@ function renderAgenda(c){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(V.agDate||''))V.agDate=todayYmd();
   const view=V.agView||'month';
   const buscando=(V.agQ||'').trim();
-  const titulo=buscando?'Resultados de la búsqueda'
-    :view==='month'?(MESES[parseYmd(V.agDate).getMonth()].replace(/^./,m=>m.toUpperCase())+' '+parseYmd(V.agDate).getFullYear())
-    :view==='week'?('Semana del '+agShortDate(agWeekStart(V.agDate))+' al '+agShortDate(agAddDays(agWeekStart(V.agDate),6)))
-    :view==='day'?agLongDate(V.agDate):'Próximos eventos';
-  const segBtn=(id,icon,label)=>`<button class="seg-btn${view===id?' on':''}" onclick="agSetView('${id}')">${ic(icon,14)} ${label}</button>`;
+  const titulo=agHeadTitle();
+  const segBtn=(id,icon,label)=>`<button class="seg-btn${view===id?' on':''}" data-v="${id}" onclick="agSetView('${id}')">${ic(icon,14)} ${label}</button>`;
   const nEv=agEvents().length;
   const pegar=S.agClip?`<button class="btn btn-g sm" onclick="agPaste()" title="Pegar «${esc(S.agClip.title)}» en ${esc(agShortDate(V.agDate))}">${ic('paste',14)} Pegar</button>`:'';
 
   c.innerHTML=`<div class="wrap"><div class="ag-area">
     <div class="page-head">
-      <div><div class="eyebrow">Agenda</div><h1 class="title">${esc(titulo)}</h1><p class="sub">${nEv} evento(s) en total${S.agShowDue!==false?' · se muestran también las entregas de muestras':''}</p></div>
+      <div><div class="eyebrow">Agenda</div><h1 class="title" id="agTitle">${esc(titulo)}</h1><p class="sub">${nEv} evento(s) en total${S.agShowDue!==false?' · se muestran también las entregas de muestras':''}</p></div>
       <button class="btn btn-p" onclick="agNew('${V.agDate}')">${ic('plus',16)} Nuevo evento</button>
     </div>
 
@@ -5273,7 +5473,7 @@ function renderAgenda(c){
         <button class="btn btn-g sm" onclick="agToday()">${ic('calendar-check',14)} Hoy</button>
         <button class="ag-navb" title="Siguiente" onclick="agStep(1)">${ic('chevron-right',16)}</button>
       </div>
-      <div class="seg">${segBtn('month','calendar','Mes')}${segBtn('week','layers','Semana')}${segBtn('day','sheet','Día')}${segBtn('list','list-check','Lista')}</div>
+      <div class="seg" id="agSeg">${segBtn('month','calendar','Mes')}${segBtn('week','layers','Semana')}${segBtn('day','sheet','Día')}${segBtn('list','list-check','Lista')}</div>
       <div class="srch-w ag-srch">${ic('search',15)}<input class="srch" id="agSearch" placeholder="Buscar eventos…" value="${esc(V.agQ||'')}" oninput="agSetQuery(this.value)"></div>
       <div class="ag-sp"></div>
       ${pegar}
@@ -5779,7 +5979,7 @@ function agOpenEditor(e){
     <div class="mtit"><span class="mtit-ic">${ic('calendar',19)}</span>${agEd.nuevo?'Nuevo evento':'Editar evento'}</div>
     ${agEd.rec?`<div class="ag-scope" id="agScope"></div>`:''}
 
-    <div class="mfld"><label class="mlbl">Título</label><input class="minp" id="agTitle" value="${esc(e.title)}" placeholder="Reunión, siembra, revisión…" onkeydown="if(event.key==='Enter'){event.preventDefault();agSaveEditor();}"></div>
+    <div class="mfld"><label class="mlbl">Título</label><input class="minp" id="agEvTitle" value="${esc(e.title)}" placeholder="Reunión, siembra, revisión…" onkeydown="if(event.key==='Enter'){event.preventDefault();agSaveEditor();}"></div>
     <div class="rp-grid">
       <div class="mfld"><label class="mlbl">Calendario</label><div class="ag-calrow"><select class="sel" style="flex:1" id="agCalSel" onchange="agEd.calId=this.value;if(agEd.hereda)agPaintColors()">${agCals().map(c=>`<option value="${c.id}"${c.id===agEd.calId?' selected':''}>${esc(c.name)}</option>`).join('')}</select><button class="btn btn-g sm" onclick="agOpenCals()" title="Gestionar calendarios">${ic('settings',14)}</button></div></div>
       <div class="mfld"><label class="mlbl">Ubicación <span style="color:var(--tx3);font-weight:400">(opcional)</span></label><input class="minp" id="agLoc" value="${esc(e.location||'')}" placeholder="Sala, equipo, edificio…"></div>
@@ -5810,7 +6010,7 @@ function agOpenEditor(e){
     </div>
   </div>`);
   agPaintScope();agPaintRepeat();agPaintAlerts();agPaintColors();agPaintStyles();
-  setTimeout(()=>{const i=document.getElementById('agTitle');if(i){i.focus();i.select();}agSyncPosField();},40);
+  setTimeout(()=>{const i=document.getElementById('agEvTitle');if(i){i.focus();i.select();}agSyncPosField();},40);
 }
 function agPaintScope(){
   const el=document.getElementById('agScope');if(!el)return;
@@ -5901,8 +6101,8 @@ function agSyncPosField(){
 }
 function agSaveEditor(){
   const val=x=>((document.getElementById(x)||{}).value||'').trim();
-  const title=nmu(val('agTitle'));
-  if(!title){toast('El evento necesita un título',{icon:'alert'});const i=document.getElementById('agTitle');if(i)i.focus();return;}
+  const title=nmu(val('agEvTitle'));
+  if(!title){toast('El evento necesita un título',{icon:'alert'});const i=document.getElementById('agEvTitle');if(i)i.focus();return;}
   const date=val('agDate')||todayYmd();
   let endDate=val('agEndDate');
   if(endDate&&endDate<=date)endDate='';
@@ -6145,6 +6345,59 @@ function agToIcs(eventos){
   L.push('END:VCALENDAR');
   return L.join('\r\n')+'\r\n';
 }
+/* ── Exportación por periodo ── */
+/* A diferencia de la exportación completa, aquí las series que se repiten se
+   despliegan: el archivo lleva una entrada por cada ocurrencia que cae dentro
+   del tramo, con sus excepciones y retoques ya aplicados. Es lo que espera
+   quien quiere «la agenda de julio» y no la regla de repetición entera. */
+function agRangoPreset(k){
+  const hoy=parseYmd(todayYmd());
+  const a=n=>String(n).padStart(2,'0');
+  const fmt=d=>d.getFullYear()+'-'+a(d.getMonth()+1)+'-'+a(d.getDate());
+  let d1,d2;
+  if(k==='mes'){d1=new Date(hoy.getFullYear(),hoy.getMonth(),1);d2=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);}
+  else if(k==='mesprox'){d1=new Date(hoy.getFullYear(),hoy.getMonth()+1,1);d2=new Date(hoy.getFullYear(),hoy.getMonth()+2,0);}
+  else if(k==='trim'){const t=Math.floor(hoy.getMonth()/3)*3;d1=new Date(hoy.getFullYear(),t,1);d2=new Date(hoy.getFullYear(),t+3,0);}
+  else if(k==='ano'){d1=new Date(hoy.getFullYear(),0,1);d2=new Date(hoy.getFullYear(),11,31);}
+  else{d1=hoy;d2=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()+29);}
+  return {desde:fmt(d1),hasta:fmt(d2)};
+}
+function agExpPreset(k){
+  const r=agRangoPreset(k);
+  const a=document.getElementById('agExpFrom'),b=document.getElementById('agExpTo');
+  if(a)a.value=r.desde;
+  if(b)b.value=r.hasta;
+  agExpResumen();
+}
+/* Cuenta en vivo lo que se llevaría el archivo, para no exportar a ciegas. */
+function agExpResumen(){
+  const el=document.getElementById('agExpInfo');
+  if(!el)return;
+  const a=document.getElementById('agExpFrom'),b=document.getElementById('agExpTo');
+  let desde=(a&&a.value)||'',hasta=(b&&b.value)||'';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(desde)||!/^\d{4}-\d{2}-\d{2}$/.test(hasta)){el.textContent='Indica las dos fechas del periodo.';return;}
+  if(desde>hasta){const t=desde;desde=hasta;hasta=t;}
+  const n=agInstancesEnRango(desde,hasta).length;
+  el.textContent=(n?n+' evento(s)':'Ningún evento')+' entre el '+agShortDate(desde)+' y el '+agShortDate(hasta)+'.';
+}
+function agInstancesEnRango(desde,hasta){
+  return agInstances(desde,hasta,true).sort((a,b)=>a.date.localeCompare(b.date)||agOrdKey(a).localeCompare(agOrdKey(b)));
+}
+function agExportPeriodo(desde,hasta){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(desde)||!/^\d{4}-\d{2}-\d{2}$/.test(hasta)){toast('Indica el periodo con las dos fechas',{icon:'alert'});return;}
+  if(desde>hasta){const t=desde;desde=hasta;hasta=t;}
+  const inst=agInstancesEnRango(desde,hasta);
+  if(!inst.length){toast('No hay eventos en ese periodo',{icon:'alert'});return;}
+  /* Cada ocurrencia viaja como evento suelto: sin regla de repetición y con un
+     UID propio, para que el calendario de destino no las funda en una sola. */
+  const evs=inst.map(e=>Object.assign({},e,{id:e.key.replace(/[|:]/g,'-'),rrule:null,exdates:[]}));
+  downloadText('bioflow-agenda-'+desde+'_'+hasta+'.ics',agToIcs(evs),'text/calendar;charset=utf-8');
+  toast(inst.length+' evento(s) exportados · '+agShortDate(desde)+' – '+agShortDate(hasta),{icon:'download'});
+}
+function agExportPeriodoUI(){
+  const a=document.getElementById('agExpFrom'),b=document.getElementById('agExpTo');
+  agExportPeriodo((a&&a.value)||'',(b&&b.value)||'');
+}
 function agExportIcs(soloFuturos){
   let evs=agEvents();
   if(soloFuturos){const hoy=todayYmd();evs=evs.filter(e=>agIsRec(e)?(!e.rrule.until||e.rrule.until>=hoy):((e.endDate||e.date)>=hoy));}
@@ -6257,8 +6510,25 @@ function agOpenSync(){
       <div class="cfg-row"><div class="cfg-txt"><b>Exportar sólo lo que viene</b><span>Eventos de hoy en adelante, y las series que sigan vivas.</span></div><button class="btn btn-g sm" onclick="agExportIcs(true)">${ic('download',15)} Próximos</button></div>
       <div class="cfg-row"><div class="cfg-txt"><b>Importar un .ics</b><span>No se duplican los eventos que ya tengas: se comparan título, fecha y hora.</span></div><button class="btn btn-g sm" onclick="document.getElementById('agIcsFile').click()">${ic('upload',15)} Importar</button></div>
     </div>
+    <div class="rp-card" style="margin-top:12px">
+      <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Exportar un periodo</b><span>Sólo lo que cae entre las dos fechas. Las series que se repiten salen desplegadas: una entrada por ocurrencia.</span></div></div>
+      <div class="ag-exp-quick">
+        <button class="btn btn-g sm" onclick="agExpPreset('mes')">Este mes</button>
+        <button class="btn btn-g sm" onclick="agExpPreset('mesprox')">Mes próximo</button>
+        <button class="btn btn-g sm" onclick="agExpPreset('trim')">Trimestre</button>
+        <button class="btn btn-g sm" onclick="agExpPreset('ano')">Este año</button>
+        <button class="btn btn-g sm" onclick="agExpPreset('30d')">30 días</button>
+      </div>
+      <div class="ag-exp-row">
+        <label class="ag-exp-f"><span>Desde</span><input type="date" class="txt-in" id="agExpFrom" value="${esc(agRangoPreset('mes').desde)}" onchange="agExpResumen()"></label>
+        <label class="ag-exp-f"><span>Hasta</span><input type="date" class="txt-in" id="agExpTo" value="${esc(agRangoPreset('mes').hasta)}" onchange="agExpResumen()"></label>
+        <button class="btn btn-p sm" onclick="agExportPeriodoUI()">${ic('download',15)} Exportar periodo</button>
+      </div>
+      <p class="sub" id="agExpInfo" style="margin-top:8px"></p>
+    </div>
     <div class="mact"><button class="btn btn-g sm" onclick="closeModal()">Cerrar</button></div>
   </div>`);
+  agExpResumen();
 }
 
 /* ── Panel de resumen (pegado al borde derecho de la ventana) ── */
@@ -6393,34 +6663,141 @@ function avisosVencidos(){
   }));
   return out;
 }
+/* Devuelve true si había algo que avisar, para que quien la llame a mano
+   (el botón de Configuración) pueda decirlo cuando no hay nada. */
 function notesCheckReminders(atStart){
-  const due=avisosVencidos();
-  if(!due.length)return;
-  due.forEach(x=>x.marcar());
+  let due=[];
+  try{due=avisosVencidos();}catch(e){try{console.warn('BioFlow · fallo al reunir los avisos:',e);}catch(_){}return false;}
+  if(!due.length)return false;
+  due.forEach(x=>{try{x.marcar();}catch(_){}});
   save();updateFbBtn();
   if(atStart||due.length>4){
     notesShowDueModal(due);
+    notifyOS('BioFlow · '+due.length+' recordatorio(s)',due.map(x=>x.texto).join(' · ').slice(0,180),()=>{try{window.focus();}catch(_){}});
   }else{
     due.forEach(x=>{
       const txt=x.texto.length>90?x.texto.slice(0,90)+'…':x.texto;
       toast('Recordatorio · '+x.etiqueta+': '+txt,{icon:'bell',duration:12000,actionLabel:'Ver',onAction:x.abrir});
-      notifyOS('Recordatorio de BioFlow',txt);
+      notifyOS('Recordatorio · '+x.etiqueta,txt,x.abrir);
     });
   }
+  return true;
 }
 
-/* Aviso del sistema operativo, si el usuario ya ha dado permiso. Nunca se pide
-   permiso por sorpresa: sólo desde el botón de la ventana de Notas. */
-function notifyOS(title,body){
-  try{if(window.Notification&&Notification.permission==='granted')new Notification(title,{body:body});}catch(_){}
+/* ── Avisos del sistema operativo ──────────────────────────────────────────
+   Los navegadores sólo permiten avisos del sistema en páginas servidas por
+   http(s). Si BioFlow se abre haciendo doble clic en el archivo (origen
+   file://), Chrome ni siquiera resuelve la petición de permiso: se queda
+   colgada para siempre y el botón parecía no hacer nada. Por eso aquí se
+   distingue cada caso, se pone un límite de espera a la petición y, cuando el
+   canal del sistema no está disponible, el aviso sigue llegando por los dos
+   caminos que funcionan siempre: el aviso flotante dentro de la app y el
+   parpadeo del título de la pestaña mientras esté en segundo plano. */
+
+/* Estado del canal de avisos del sistema. Un único sitio del que se fían el
+   botón de Notas, la Configuración y el disparo real del aviso. */
+function notifEstado(){
+  const api=typeof window.Notification==='function';
+  const local=(location.protocol==='file:');
+  let permiso=api?Notification.permission:'unsupported';
+  /* En file:// el permiso se queda en «default» para siempre: no es que falte
+     pulsar el botón, es que ese origen no puede recibirlo. */
+  const disponible=api&&!local;
+  return {
+    api,local,permiso,disponible,
+    activo:disponible&&permiso==='granted',
+    motivo:!api?'Este navegador no admite avisos del sistema.'
+      :local?'La app está abierta como archivo local (file://) y los navegadores no dan avisos del sistema a ese origen.'
+      :permiso==='denied'?'Los avisos están bloqueados para esta página en los ajustes del navegador.'
+      :permiso==='granted'?'':'Falta autorizar los avisos.'
+  };
 }
+/* Etiqueta corta para la interfaz. */
+function notifEtiqueta(){
+  const e=notifEstado();
+  return e.activo?'Activos':e.local?'No disponibles aquí':e.permiso==='denied'?'Bloqueados':e.api?'Sin autorizar':'No admitidos';
+}
+
+/* Parpadeo del título de la pestaña: el único aviso «fuera de la app» que
+   funciona sin permisos y en cualquier origen. Se detiene al volver. */
+let _notifFlash=null;
+function notifFlashTitulo(texto){
+  if(document.visibilityState==='visible')return;
+  if(_notifFlash)return;
+  const original=document.title;
+  let on=false;
+  _notifFlash=setInterval(()=>{on=!on;document.title=on?('🔔 '+texto):original;},1100);
+  const parar=()=>{
+    if(!_notifFlash)return;
+    clearInterval(_notifFlash);_notifFlash=null;document.title=original;
+    document.removeEventListener('visibilitychange',parar);
+    window.removeEventListener('focus',parar);
+  };
+  document.addEventListener('visibilitychange',parar);
+  window.addEventListener('focus',parar);
+  setTimeout(parar,120000);
+}
+
+/* Dispara el aviso por el mejor canal disponible. Devuelve true si salió por
+   el sistema operativo. Nunca pide permiso por sorpresa. */
+function notifyOS(title,body,onClick){
+  const corto=String(body||'');
+  notifFlashTitulo(corto.length>40?corto.slice(0,40)+'…':corto);
+  if(!notifEstado().activo)return false;
+  try{
+    const n=new Notification(title,{body:corto,icon:'favicon.png',tag:'bioflow-'+Date.now()});
+    n.onclick=()=>{try{window.focus();}catch(_){}if(onClick)onClick();n.close();};
+    return true;
+  }catch(_){return false;}
+}
+
+/* Pide el permiso. Con límite de espera: si el navegador no responde (caso
+   típico de file://) se avisa en lugar de dejar el botón mudo. */
 function notesAskOSPermission(){
-  if(!window.Notification){toast('Este equipo no admite avisos del sistema',{icon:'alert'});return;}
-  if(Notification.permission==='granted'){toast('Los avisos del sistema ya están activos',{icon:'circle-check'});return;}
-  Notification.requestPermission().then(p=>{
-    toast(p==='granted'?'Avisos del sistema activados':'Avisos del sistema no autorizados',{icon:p==='granted'?'circle-check':'alert'});
-    notesPaintAll();
-  });
+  const e=notifEstado();
+  if(!e.api){toast('Este navegador no admite avisos del sistema',{icon:'alert',duration:7000});return;}
+  if(e.local){
+    notifExplicarLocal();
+    return;
+  }
+  if(e.permiso==='granted'){toast('Los avisos del sistema ya están activos',{icon:'circle-check'});notifProbar();return;}
+  if(e.permiso==='denied'){
+    toast('Los avisos están bloqueados para esta página. Actívalos desde el candado de la barra de direcciones.',{icon:'alert',duration:9000});
+    return;
+  }
+  let resuelto=false;
+  const fin=p=>{
+    if(resuelto)return;resuelto=true;
+    toast(p==='granted'?'Avisos del sistema activados':p==='timeout'?'El navegador no ha respondido a la petición de permiso. Los recordatorios seguirán apareciendo dentro de la app.':'Avisos del sistema no autorizados',
+      {icon:p==='granted'?'circle-check':'alert',duration:p==='granted'?5000:9000});
+    try{notesPaintAll();}catch(_){}
+    try{if(V.area==='config')renderAll();}catch(_){}
+    if(p==='granted')notifProbar();
+  };
+  setTimeout(()=>fin('timeout'),6000);
+  try{
+    /* API moderna (promesa) y la antigua (callback): algunos navegadores sólo
+       tienen una de las dos. */
+    const r=Notification.requestPermission(p=>fin(p));
+    if(r&&typeof r.then==='function')r.then(fin).catch(()=>fin('default'));
+  }catch(_){fin('default');}
+}
+function notifExplicarLocal(){
+  openModalHTML(`<div class="modal" style="width:min(540px,96vw)">
+    <div class="mtit"><span class="mtit-ic">${ic('bell',19)}</span>Avisos del sistema</div>
+    <p class="sub" style="margin-top:2px">Ahora mismo BioFlow está abierto como <b>archivo local</b> (<code>file://</code>). Los navegadores no conceden avisos del sistema a ese origen, así que el permiso nunca llega a pedirse.</p>
+    <div class="rp-card" style="margin-top:12px">
+      <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Los recordatorios siguen funcionando</b><span>Vencen igual y aparecen como aviso flotante dentro de la app; los que venzan con la app cerrada se agrupan en una ventana al abrirla. Si la pestaña está en segundo plano, además parpadea su título.</span></div></div>
+      <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Para tener avisos del escritorio</b><span>Usa la versión instalada de BioFlow, o abre el archivo desde un servidor local (por ejemplo <code>npx serve</code> en esta carpeta y entrar por <code>http://localhost</code>). Desde un origen http el botón sí pide permiso.</span></div></div>
+    </div>
+    <div class="mact"><button class="btn btn-g sm" onclick="closeModal()">Entendido</button><button class="btn btn-p sm" onclick="notifProbar()">${ic('bell',15)} Probar un aviso</button></div>
+  </div>`);
+}
+/* Aviso de prueba, para comprobar de un vistazo por dónde sale. */
+function notifProbar(){
+  const fue=notifyOS('BioFlow · aviso de prueba','Si ves esto en el escritorio, los avisos del sistema funcionan.',()=>openNotes());
+  toast(fue?'Aviso de prueba enviado al escritorio':'Aviso de prueba (dentro de la app): '+notifEstado().motivo,
+    {icon:fue?'circle-check':'bell',duration:8000});
 }
 function notesShowDueModal(due){
   const items=due.map(x=>`<div class="fb-item"><div class="nt-ico ${x.clase||'note'}">${ic(x.icono,16)}</div><div class="fb-body"><div class="fb-meta"><span class="fb-tag ${x.clase||'note'}">${esc(x.etiqueta)}</span><span class="fb-date">${esc(x.cuando||'')}</span></div><div class="fb-text">${esc(x.texto)}</div></div></div>`).join('');
@@ -6475,7 +6852,7 @@ function openNotes(){
       <input type="time" class="minp nt-time" id="ntNewTime" aria-label="Hora del recordatorio">
       <button class="btn btn-g sm" onclick="ntClearNewRemind()" title="Quitar el recordatorio">${ic('x',13)}</button>
       <div class="nt-sp"></div>
-      <button class="btn btn-g sm" onclick="notesAskOSPermission()" title="Permitir avisos del sistema operativo">${ic('bell',13)} Avisos del sistema</button>
+      <button class="btn btn-g sm" onclick="notesAskOSPermission()" title="${esc(notifEstado().motivo||'Los avisos del sistema están activos')}">${ic('bell',13)} Avisos del sistema · ${esc(notifEtiqueta())}</button>
     </div>
 
     <div class="nt-tools">
