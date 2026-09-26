@@ -867,6 +867,23 @@ body.compact .scard{padding:13px}
 .cfg-txt b{font-size:13.5px;font-weight:600;color:var(--tx)}
 .cfg-txt span{font-size:12px;color:var(--tx2);line-height:1.45}
 label.cfg-row{cursor:pointer}
+/* Paneles plegables de Configuración */
+.cfg-pnls{display:flex;flex-direction:column;gap:12px;min-width:0}
+.cfg-pnl{padding:0;overflow:hidden;scroll-margin-top:12px}
+.cfg-pnl-hd{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;background:none;border:none;text-align:left;cursor:pointer;color:var(--tx);font:inherit;min-width:0}
+.cfg-pnl-hd:hover{background:var(--sf2)}
+.cfg-pnl-hd:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
+.cfg-pnl-tx{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+.cfg-pnl-tx b{font-size:15px;font-weight:650;letter-spacing:-.015em}
+.cfg-pnl-tx span{font-size:12px;color:var(--tx2);line-height:1.45}
+.cfg-pnl-chev{display:flex;color:var(--tx3);transition:transform .18s ease;flex-shrink:0}
+.cfg-pnl.open .cfg-pnl-chev{transform:rotate(180deg)}
+.cfg-pnl-bd{display:none;padding:4px 16px 16px;border-top:1px solid var(--bd)}
+.cfg-pnl.open .cfg-pnl-bd{display:block}
+.cfg-pnl.open .cfg-pnl-hd .notif-chip{display:none}
+.cfg-sub{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);margin:22px 2px 4px;padding-top:14px;border-top:1px dashed var(--bd)}
+.cfg-pnl-bd>.cfg-sub:first-child{margin-top:10px;padding-top:0;border-top:none}
+@media (max-width:560px){.cfg-pnl-hd .notif-chip{display:none}}
 
 /* ClipHistory (Configuración): descarga del zip e instrucciones de uso */
 .clip-hd{display:flex;align-items:center;gap:13px;padding:2px 2px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
@@ -3405,7 +3422,7 @@ function goDashboard(){setArea('dashboard');}
 function phHome(){V.area='phenotype';S.area='phenotype';V.fpage='home';V.fsid=null;save();closeDrawer();renderAll();}
 function phOpenSample(id){if(!phSample(id))return;V.area='phenotype';S.area='phenotype';V.fpage='sample';V.fsid=id;S.lastFsid=id;save();closeDrawer();renderAll();if(isMobile()&&!S.sideOff){S.sideOff=true;applySide();}}
 /* Los ajustes de fenotipos viven en Configuración general; se salta allí. */
-function phOpenSettings(){setArea('config');setTimeout(()=>{const el=document.getElementById('cfgFeno');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);}
+function phOpenSettings(){cfgOpenPanel('fenotipos');}
 function phOpenCompare(){V.area='phenotype';S.area='phenotype';V.fpage='compare';save();renderAll();}
 function gotoPheno(fsid){if(!phSample(fsid))return;closeDrawer();V.area='phenotype';S.area='phenotype';V.fpage='sample';V.fsid=fsid;S.lastFsid=fsid;save();renderAll();}
 function gotoSample(pid,sid){V.area='projects';S.area='projects';V.page='proj';V.pid=pid;S.lastPid=pid;V.sid=null;save();renderAll();setTimeout(()=>openSample(sid),40);}
@@ -4179,10 +4196,31 @@ function renderDashboard(c){
   </div>`;
 }
 /* ════════ CONFIGURACIÓN ════════ */
-/* Único lugar de ajustes de la app: datos, apariencia, arranque y todo lo que
-   antes vivía en «Fenotipos · Ajustes». Cada bloque usa el mismo formato de
-   sección + tarjeta + fila que el resto de la página. */
-function renderConfig(c){
+/* Único lugar de ajustes de la app. Los ajustes se agrupan en paneles plegables
+   por tema; cada panel es una entrada de cfgPanels() con id, icono, título,
+   resumen y cuerpo. Para añadir una sección nueva basta con añadir una entrada
+   a esa lista. Qué paneles están abiertos se recuerda en S.cfgOpen; si no hay
+   nada guardado, sólo el primero aparece abierto. */
+function cfgIsOpen(id,i){const o=S.cfgOpen;return o&&typeof o==='object'&&id in o?!!o[id]:i===0;}
+/* Abre o cierra un panel sin redibujar la página. */
+function cfgToggle(id){
+  const el=document.getElementById('cfgp-'+id);if(!el)return;
+  const open=!el.classList.contains('open');
+  if(!S.cfgOpen||typeof S.cfgOpen!=='object')S.cfgOpen={};
+  S.cfgOpen[id]=open;save();
+  el.classList.toggle('open',open);
+  const b=el.querySelector('.cfg-pnl-hd');if(b)b.setAttribute('aria-expanded',open);
+}
+/* Salta a un panel de Configuración y lo deja abierto. */
+function cfgOpenPanel(id){
+  if(!S.cfgOpen||typeof S.cfgOpen!=='object')S.cfgOpen={};
+  S.cfgOpen[id]=true;save();
+  if(V.area==='config')refreshConfig();else setArea('config');
+  setTimeout(()=>{const el=document.getElementById('cfgp-'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
+}
+/* Subtítulo dentro de un panel, para separar grupos de ajustes relacionados. */
+function cfgSub(icon,t){return `<div class="cfg-sub">${ic(icon,14)} ${t}</div>`;}
+function cfgPanels(){
   const on=v=>v!==false;
   const sc=S.scale||100;
   const ex=S.ph.export||{};
@@ -4199,20 +4237,16 @@ function renderConfig(c){
   const optOpts=S.ph.options.map(o=>`<option value="${o.id}">${esc(o.label)}</option>`).join('');
   const presets=S.ph.presets.length?S.ph.presets.map(p=>`<div class="opt-row" style="align-items:flex-start"><input class="txt-in" style="flex:0 0 190px" value="${esc(p.name)}" placeholder="Nombre del preset" onchange="phUpdatePreset('${p.id}',{name:this.value})"><input class="txt-in" style="flex:1;min-width:220px" value="${esc(p.markers.join(', '))}" placeholder="CD3, CD4, CD8, …" onchange="phUpdatePreset('${p.id}',{markers:this.value.split(',').map(x=>x.trim()).filter(Boolean)})"><span class="preset-count">${p.markers.length} marcadores</span><button class="ic-x" title="Eliminar preset" onclick="phRemovePreset('${p.id}')">${ic('trash',15)}</button></div>`).join(''):`<p class="sub">Aún no hay presets.</p>`;
 
-  c.innerHTML=`<div class="wrap">
-    <div class="hero"><div><div class="eyebrow">Configuración</div><h1 class="title">Configuración</h1><p class="sub">Datos, copias de seguridad, apariencia, fenotipos y comportamiento de la app.</p></div></div>
+  const av=notifEstado();
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('download',19)}</div><h2>Datos y copias</h2></div>
-      <div class="rp-card">
+  return [
+    {id:'datos',icon:'download',title:'Datos y copias',desc:'Exportar, importar, copias automáticas y archivo vinculado.',body:`
         <div class="cfg-row"><div class="cfg-txt"><b>Exportar datos</b><span>Descarga una copia de seguridad en JSON, con tus ajustes incluidos.</span></div><button class="btn btn-g sm" onclick="exportData()">${ic('download',15)} Exportar</button></div>
         <div class="cfg-row"><div class="cfg-txt"><b>Importar datos</b><span>Carga un archivo JSON previamente exportado.</span></div><button class="btn btn-g sm" onclick="document.getElementById('importFile').click()">${ic('upload',15)} Importar</button></div>
         <div class="cfg-row"><div class="cfg-txt"><b>Copias de seguridad automáticas</b><span>Instantáneas guardadas en este equipo.</span></div><button class="btn btn-g sm" onclick="openBackups()">${ic('history',15)} Copias</button></div>
-        <div class="cfg-row"><div class="cfg-txt"><b>Archivo de datos vinculado</b><span>Sincroniza los cambios con un archivo de respaldo.</span></div><button class="btn btn-g sm" onclick="fileBtnClick()">${ic('link',15)} Gestionar</button></div>
-      </div>
-    </div>
+        <div class="cfg-row"><div class="cfg-txt"><b>Archivo de datos vinculado</b><span>Sincroniza los cambios con un archivo de respaldo.</span></div><button class="btn btn-g sm" onclick="fileBtnClick()">${ic('link',15)} Gestionar</button></div>`},
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('sun',19)}</div><h2>Apariencia</h2></div>
-      <div class="rp-card">
+    {id:'apariencia',icon:'sun',title:'Apariencia e inicio',desc:'Tema, ancho, densidad, tamaño y qué ocurre al abrir la app.',body:`
         <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Tema</b><span>Todos los temas están comprobados para que el texto y los iconos mantengan buen contraste.</span></div></div>
         <div class="theme-grid">${themeCards}</div>
         <label class="cfg-row"><div class="cfg-txt"><b>Modo ancho</b><span>Aprovecha más el ancho de pantalla.</span></div><input type="checkbox" ${S.wide?'checked':''} onchange="toggleWide()"></label>
@@ -4220,18 +4254,11 @@ function renderConfig(c){
         <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Tamaño de la interfaz</b><span>Escala todo el contenido. También con Ctrl +, Ctrl − y Ctrl 0.</span></div>
           <div class="seg">${[75,100,125,150].map(v=>`<button class="seg-btn${sc===v?' on':''}" onclick="phSetScale(${v})">${v}%${v===100?' (pred.)':''}</button>`).join('')}</div>
         </div>
-      </div>
-    </div>
-
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('activity',19)}</div><h2>Al abrir la app</h2></div>
-      <div class="rp-card">
+        ${cfgSub('activity','Al abrir la app')}
         <label class="cfg-row"><div class="cfg-txt"><b>Animación de carga</b><span>Muestra una breve animación (1,5 s) al abrir.</span></div><input type="checkbox" ${on(S.showLoader)?'checked':''} onchange="S.showLoader=this.checked;save()"></label>
-        <label class="cfg-row"><div class="cfg-txt"><b>Recordatorio de sincronización</b><span>Abre la ventana del archivo de datos al iniciar.</span></div><input type="checkbox" ${on(S.syncReminder)?'checked':''} onchange="S.syncReminder=this.checked;save()"></label>
-      </div>
-    </div>
+        <label class="cfg-row"><div class="cfg-txt"><b>Recordatorio de sincronización</b><span>Abre la ventana del archivo de datos al iniciar.</span></div><input type="checkbox" ${on(S.syncReminder)?'checked':''} onchange="S.syncReminder=this.checked;save()"></label>`},
 
-    ${(()=>{const av=notifEstado();return `<div class="section"><div class="sec-hd"><div class="sec-ico">${ic('bell',19)}</div><h2>Avisos y recordatorios</h2></div>
-      <div class="rp-card">
+    {id:'avisos',icon:'bell',title:'Avisos y recordatorios',desc:'Avisos del escritorio para Notas y Agenda.',badge:`<span class="notif-chip${av.activo?' on':''}">${ic(av.activo?'circle-check':'alert',13)} ${esc(notifEtiqueta())}</span>`,body:`
         <div class="cfg-row"><div class="cfg-txt"><b>Avisos del sistema</b><span>${av.activo?'Activos: los recordatorios salen también como aviso del escritorio.':esc(av.motivo)}</span></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <span class="notif-chip${av.activo?' on':''}">${ic(av.activo?'circle-check':'alert',13)} ${esc(notifEtiqueta())}</span>
@@ -4239,52 +4266,38 @@ function renderConfig(c){
           </div>
         </div>
         <div class="cfg-row"><div class="cfg-txt"><b>Probar un aviso</b><span>Lanza un recordatorio de prueba y te dice por qué canal ha salido.</span></div><button class="btn btn-g sm" onclick="notifProbar()">${ic('bell',15)} Probar</button></div>
-        <div class="cfg-row"><div class="cfg-txt"><b>Recordatorios pendientes</b><span>Los avisos de Notas y Agenda se comprueban cada 30 segundos; los que vencieron con la app cerrada se agrupan al abrirla.</span></div><button class="btn btn-g sm" onclick="notesCheckReminders(true)||toast('No hay avisos vencidos ahora mismo',{icon:'circle-check'})">${ic('history',15)} Comprobar ahora</button></div>
-      </div>
-    </div>`;})()}
+        <div class="cfg-row"><div class="cfg-txt"><b>Recordatorios pendientes</b><span>Los avisos de Notas y Agenda se comprueban cada 30 segundos; los que vencieron con la app cerrada se agrupan al abrirla.</span></div><button class="btn btn-g sm" onclick="notesCheckReminders(true)||toast('No hay avisos vencidos ahora mismo',{icon:'circle-check'})">${ic('history',15)} Comprobar ahora</button></div>`},
 
-    <div class="section" id="cfgFeno"><div class="sec-hd"><div class="sec-ico">${ic('flask',19)}</div><h2>Fenotipos · Opciones de expresión</h2></div>
-      <div class="rp-card">
+    {id:'fenotipos',icon:'flask',title:'Fenotipos',desc:'Opciones de expresión, relleno de celdas, presets de marcadores y exportación.',body:`
+        ${cfgSub('flask','Opciones de expresión')}
         <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Valores de expresión</b><span>Aparecen al rellenar cada marcador y son estándar para todos los fenotipos y poblaciones. «Cuenta como» define qué opciones suman a los % de +, − y het bajo la tabla; «No aplica» las excluye de la base.</span></div></div>
         <div class="opt-list">${opts}</div>
         <div style="display:flex;gap:9px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-p sm" onclick="phAddOption()">${ic('plus',15)} Añadir opción</button><button class="btn btn-g sm" onclick="phResetOptions()">Restaurar por defecto</button></div>
         <div class="cfg-row cfg-block" style="margin-top:18px"><div class="cfg-txt"><b>Fusionar opciones</b><span>Reasigna todas las celdas de una opción a otra y elimina la primera. Útil para unificar opciones personalizadas duplicadas.</span></div></div>
         <div class="opt-row" style="flex-wrap:wrap"><span style="font-weight:600">Todas las</span><select class="sel sm" id="mergeA">${optOpts}</select><span style="font-weight:600">pasan a</span><select class="sel sm" id="mergeB">${optOpts}</select><button class="btn btn-g sm" onclick="phMergeOptionsUI()">${ic('layers',14)} Fusionar</button></div>
-      </div>
-    </div>
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('circle-dot',19)}</div><h2>Fenotipos · Relleno de celdas</h2></div>
-      <div class="rp-card">
+        ${cfgSub('circle-dot','Relleno de celdas')}
         <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Cómo se asigna la expresión</b><span>Con el <b>selector orbital</b>, al mantener pulsada una celda se abre una corona con todas las expresiones: arrastra hacia la que quieras y suelta. Una pulsación breve deja la corona abierta para elegir con un clic.</span></div>
           <div class="seg">
             <button class="seg-btn${(S.ph.picker||'list')==='list'?' on':''}" onclick="phSetPicker('list')">${ic('layers',14)} Lista desplegable</button>
             <button class="seg-btn${S.ph.picker==='dial'?' on':''}" onclick="phSetPicker('dial')">${ic('circle-dot',14)} Selector orbital</button>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('tag',19)}</div><h2>Fenotipos · Presets de marcadores</h2></div>
-      <div class="rp-card">
+        ${cfgSub('tag','Presets de marcadores')}
         <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Paneles guardados</b><span>Puedes aplicarlos a cualquier fenotipo. Escribe los marcadores separados por comas.</span></div></div>
         <div class="opt-list">${presets}</div>
         <div style="margin-top:14px"><button class="btn btn-p sm" onclick="phAddPreset()">${ic('plus',15)} Añadir preset</button></div>
-      </div>
-    </div>
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('export',19)}</div><h2>Fenotipos · Exportación</h2></div>
-      <div class="rp-card">
+        ${cfgSub('export','Exportación')}
         <div class="cfg-row cfg-block"><div class="cfg-txt"><b>Cómo se generan los marcadores</b><span>Se aplica al exportar en TXT y al inmunofenotipo del informe.</span></div></div>
         <div class="opt-list">
           <div class="opt-row"><span style="flex:0 0 210px;font-weight:600">Orden de marcadores y poblaciones</span><select class="sel" style="flex:1;min-width:200px" onchange="phSetExport('order',this.value)"><option value="view"${phExportOrder()==='view'?' selected':''}>El seleccionado en el fenotipo</option><option value="alpha"${phExportOrder()==='alpha'?' selected':''}>Alfabético / numérico</option><option value="panel"${phExportOrder()==='panel'?' selected':''}>Sin modificaciones (orden del panel)</option></select></div>
           <div class="opt-row"><label style="display:flex;align-items:center;gap:8px;flex:0 0 210px;font-weight:600"><input type="checkbox" ${ex.convertD!==false?'checked':''} onchange="phSetExport('convertD',this.checked)"> Convertir «d» en</label><input class="txt-in" style="flex:1;min-width:140px" value="${esc(ex.dWord||'débil')}" onchange="phSetExport('dWord',this.value)"></div>
           <div class="opt-row"><label style="display:flex;align-items:center;gap:8px;flex:0 0 210px;font-weight:600"><input type="checkbox" ${ex.convertHet!==false?'checked':''} onchange="phSetExport('convertHet',this.checked)"> Convertir «het» en</label><input class="txt-in" style="flex:1;min-width:140px" value="${esc(ex.hetWord||'heterog')}" onchange="phSetExport('hetWord',this.value)"></div>
-        </div>
-      </div>
-    </div>
+        </div>`},
 
-    <div class="section" id="cfgClip"><div class="sec-hd"><div class="sec-ico">${ic('paste',19)}</div><h2>Portapapeles · ClipHistory</h2></div>
-      <div class="rp-card">
+    {id:'clip',icon:'paste',title:'Portapapeles · ClipHistory',desc:'Descarga e instrucciones del historial del portapapeles con Win+V.',body:`
         <div class="clip-hd">
           <div class="clip-logo">${ic('paste',22)}</div>
           <div class="cfg-txt"><b>ClipHistory — historial del portapapeles con Win+V</b><span>Guarda todo lo que copias con todos sus formatos (texto con formato, celdas de Excel, imágenes, archivos) y lo pega idéntico. No necesita instalación ni permisos de administrador.</span>
@@ -4319,13 +4332,28 @@ function renderConfig(c){
           <div class="clip-tip"><h4>${ic('circle-check',15)} Fidelidad</h4><ul><li>Lo último copiado se pega directamente desde la app de origen.</li><li>Cada elemento guarda todos los formatos, byte a byte.</li><li>Lo que no se puede guardar aparece como «No compatible», pero se pega con Ctrl+V mientras sea lo último copiado.</li></ul></div>
           <div class="clip-tip"><h4>${ic('info',15)} Notas</h4><ul><li>El historial vive en memoria; solo anclados y ajustes se guardan en <code>%APPDATA%\\ClipHistory</code>.</li><li>Sobre el menú Inicio o el buscador de Windows, el panel se abre a su lado y pega allí.</li><li>No puede pegar en programas abiertos «como administrador».</li></ul></div>
           <div class="clip-tip"><h4>${ic('trash',15)} Desinstalar</h4><p>Clic derecho en el icono → desmarca <i>Iniciar con Windows</i> → <i>Salir</i>, y borra la carpeta.</p></div>
-        </div>
-      </div>
-    </div>
+        </div>`},
 
-    <div class="section"><div class="sec-hd"><div class="sec-ico">${ic('info',19)}</div><h2>Ayuda</h2></div>
-      <div class="rp-card"><div class="cfg-row"><div class="cfg-txt"><b>Atajos de teclado</b><span>Lista de atajos disponibles.</span></div><button class="btn btn-g sm" onclick="openShortcuts()">${ic('info',15)} Ver atajos</button></div></div>
-    </div>
+    {id:'ayuda',icon:'info',title:'Ayuda',desc:'Atajos de teclado.',body:`
+        <div class="cfg-row"><div class="cfg-txt"><b>Atajos de teclado</b><span>Lista de atajos disponibles.</span></div><button class="btn btn-g sm" onclick="openShortcuts()">${ic('info',15)} Ver atajos</button></div>`},
+  ];
+}
+function renderConfig(c){
+  const panels=cfgPanels().map((p,i)=>{
+    const open=cfgIsOpen(p.id,i);
+    return `<section class="rp-card cfg-pnl${open?' open':''}" id="cfgp-${p.id}">
+      <button class="cfg-pnl-hd" aria-expanded="${open}" aria-controls="cfgb-${p.id}" onclick="cfgToggle('${p.id}')">
+        <span class="sec-ico">${ic(p.icon,19)}</span>
+        <span class="cfg-pnl-tx"><b>${p.title}</b><span>${p.desc}</span></span>
+        ${p.badge||''}
+        <span class="cfg-pnl-chev">${ic('chevron-down',18)}</span>
+      </button>
+      <div class="cfg-pnl-bd" id="cfgb-${p.id}">${p.body}</div>
+    </section>`;
+  }).join('');
+  c.innerHTML=`<div class="wrap">
+    <div class="hero"><div><div class="eyebrow">Configuración</div><h1 class="title">Configuración</h1><p class="sub">Datos, copias de seguridad, apariencia, fenotipos y comportamiento de la app.</p></div></div>
+    <div class="cfg-pnls">${panels}</div>
   </div>`;
 }
 
